@@ -18,26 +18,53 @@ class LinkedInService:
 
     async def login(self):
         """Login to LinkedIn"""
-        playwright = await async_playwright().start()
-        self.browser = await playwright.chromium.launch(headless=True)
-        context = await self.browser.new_context()
-        
-        # Load existing session if available
-        if self.session:
-            await context.add_cookies(self.session)
-        
-        self.page = await context.new_page()
-        await self.page.goto('https://www.linkedin.com/login')
-        
-        # If not logged in, perform login
-        if not self.session or '/login' in self.page.url:
-            await self.page.fill('input[name="session_key"]', self.email)
-            await self.page.fill('input[name="session_password"]', self.password)
-            await self.page.click('button[type="submit"]')
-            await self.page.wait_for_load_state('networkidle')
+        try:
+            playwright = await async_playwright().start()
+            self.browser = await playwright.chromium.launch(headless=True)
+            context = await self.browser.new_context(
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            )
             
-            # Save session
-            self.session = await context.cookies()
+            # Load existing session if available
+            if self.session:
+                try:
+                    await context.add_cookies(self.session)
+                except Exception as e:
+                    print(f"Could not restore session: {e}")
+                    self.session = None
+            
+            self.page = await context.new_page()
+            await self.page.goto('https://www.linkedin.com/login', timeout=30000)
+            
+            # If not logged in, perform login
+            if not self.session or '/login' in self.page.url:
+                # Wait for login form
+                await self.page.wait_for_selector('input[name="session_key"]', timeout=10000)
+                
+                await self.page.fill('input[name="session_key"]', self.email)
+                await self.page.fill('input[name="session_password"]', self.password)
+                await self.page.click('button[type="submit"]')
+                
+                # Wait for navigation
+                try:
+                    await self.page.wait_for_load_state('networkidle', timeout=30000)
+                except Exception:
+                    # Sometimes networkidle doesn't trigger, check URL instead
+                    await asyncio.sleep(3)
+                
+                # Check if login was successful
+                if '/checkpoint/challenge' in self.page.url:
+                    raise ValueError("LinkedIn security challenge detected - manual login required")
+                elif '/login' in self.page.url:
+                    raise ValueError("Login failed - check credentials")
+                
+                # Save session
+                self.session = await context.cookies()
+                
+        except Exception as e:
+            if self.browser:
+                await self.browser.close()
+            raise ValueError(f"LinkedIn login failed: {str(e)}")
 
     async def send_connection_request(self, profile_url: str, note: str = "") -> dict:
         """Send connection request to prospect"""

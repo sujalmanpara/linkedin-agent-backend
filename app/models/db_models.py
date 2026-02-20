@@ -11,8 +11,8 @@ class User(Base):
     user_id = Column(String(255), unique=True, nullable=False, index=True)
     
     # LinkedIn credentials (encrypted)
-    linkedin_email = Column(Text)  # Encrypted
-    linkedin_password = Column(Text)  # Encrypted
+    linkedin_email = Column(Text)  # Plain email for display
+    linkedin_credentials_encrypted = Column(Text)  # Encrypted {email, password}
     linkedin_session = Column(Text)  # Encrypted cookies/session
     
     # LLM config (encrypted)
@@ -20,10 +20,10 @@ class User(Base):
     
     # Automation settings
     automation_enabled = Column(Boolean, default=True)
-    daily_limits = Column(JSON, default={})  # {connections: 50, messages: 30}
+    daily_limits = Column(JSON, default=dict)  # {connections: 50, messages: 30}
     
     # Preferences
-    preferences = Column(JSON, default={})
+    preferences = Column(JSON, default=dict)
     
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
@@ -49,7 +49,7 @@ class Campaign(Base):
     sequence = Column(JSON, nullable=False)  # [{day: 0, action: "connect", template: "..."}]
     
     # Stats
-    stats = Column(JSON, default={})  # {sent: 0, accepted: 0, replied: 0}
+    stats = Column(JSON, default=dict)  # {sent: 0, accepted: 0, replied: 0}
     
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
@@ -84,7 +84,7 @@ class Prospect(Base):
     connection_status = Column(String(50))  # pending, accepted, not_sent
     
     # Conversation
-    conversation_history = Column(JSON, default=[])
+    conversation_history = Column(JSON, default=list)
     
     last_interaction_at = Column(DateTime)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

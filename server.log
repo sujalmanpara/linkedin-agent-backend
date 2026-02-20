@@ -1,0 +1,15 @@
+INFO:     Started server process [25176]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8300 (Press CTRL+C to quit)
+⚠️  PostgreSQL not available ((psycopg2.OperationalError) connection to server at "localhost" (127.0.0.1), port 5432 failed: Connection refused
+	Is the server running on that host and accepting TCP/IP connections?
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8)), falling back to SQLite
+INFO:     127.0.0.1:51302 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45654 - "POST /api/users/configure HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45660 - "POST /api/campaigns/create HTTP/1.1" 500 Internal Server Error
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [25176]

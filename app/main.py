@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import engine, Base
-from app.api.routes import users
+from app.api.routes import users, campaigns, prospects, actions
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -22,6 +22,9 @@ app.add_middleware(
 
 # Routes
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
+app.include_router(campaigns.router, prefix="/api/campaigns", tags=["Campaigns"])
+app.include_router(prospects.router, prefix="/api/prospects", tags=["Prospects"])
+app.include_router(actions.router, prefix="/api/actions", tags=["Actions"])
 
 
 @app.get("/")

@@ -89,39 +89,55 @@ Return ONLY valid JSON (no markdown):
             raise ValueError(f"Unsupported provider: {self.provider}")
 
     async def _call_anthropic(self, prompt, max_tokens):
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={
-                    "x-api-key": self.api_key,
-                    "anthropic-version": "2023-06-01",
-                    "content-type": "application/json"
-                },
-                json={
-                    "model": self.model,
-                    "max_tokens": max_tokens,
-                    "messages": [{"role": "user", "content": prompt}]
-                }
-            )
-            resp.raise_for_status()
-            return resp.json()["content"][0]["text"]
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                resp = await client.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={
+                        "x-api-key": self.api_key,
+                        "anthropic-version": "2023-06-01",
+                        "content-type": "application/json"
+                    },
+                    json={
+                        "model": self.model,
+                        "max_tokens": max_tokens,
+                        "messages": [{"role": "user", "content": prompt}]
+                    }
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                if "content" not in data or len(data["content"]) == 0:
+                    raise ValueError("Empty response from Anthropic API")
+                return data["content"][0]["text"]
+        except httpx.HTTPStatusError as e:
+            raise ValueError(f"Anthropic API error: {e.response.status_code} - {e.response.text}")
+        except Exception as e:
+            raise ValueError(f"LLM generation failed: {str(e)}")
 
     async def _call_openai(self, prompt, max_tokens):
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": self.model,
-                    "max_tokens": max_tokens,
-                    "messages": [{"role": "user", "content": prompt}]
-                }
-            )
-            resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"]
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                resp = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": self.model,
+                        "max_tokens": max_tokens,
+                        "messages": [{"role": "user", "content": prompt}]
+                    }
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                if "choices" not in data or len(data["choices"]) == 0:
+                    raise ValueError("Empty response from OpenAI API")
+                return data["choices"][0]["message"]["content"]
+        except httpx.HTTPStatusError as e:
+            raise ValueError(f"OpenAI API error: {e.response.status_code} - {e.response.text}")
+        except Exception as e:
+            raise ValueError(f"LLM generation failed: {str(e)}")
 
 
 def _parse_json(text: str) -> dict:

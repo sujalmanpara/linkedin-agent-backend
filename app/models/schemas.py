@@ -17,7 +17,7 @@ class LinkedInCredentials(BaseModel):
 
 
 class ConfigureUserRequest(BaseModel):
-    user_id: str
+    user_id: str = Field(..., min_length=1, max_length=255, description="Unique user identifier")
     linkedin_credentials: LinkedInCredentials
     llm_config: LLMConfig
     daily_limits: Optional[dict] = {"connections": 50, "messages": 30}
@@ -49,6 +49,17 @@ class CreateCampaignResponse(BaseModel):
     status: str
     campaign_id: str
     message: str
+
+
+class CampaignResponse(BaseModel):
+    campaign_id: str
+    user_id: str
+    name: str
+    status: str
+    target_filters: dict
+    sequence: list
+    stats: dict
+    created_at: datetime
 
 
 class CampaignStatsResponse(BaseModel):
