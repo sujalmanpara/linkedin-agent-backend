@@ -66,12 +66,11 @@ async def queue_action(req: QueueActionRequest, db: Session = Depends(get_db)):
 
 @router.get("/pending", response_model=List[ActionResponse])
 async def get_pending_actions(user_id: str, db: Session = Depends(get_db)):
-    """Get all pending actions for a user"""
+    """Get all pending actions for a user (including future scheduled actions)"""
     actions = db.query(Action).filter(
         Action.user_id == user_id,
-        Action.status == "pending",
-        Action.scheduled_for <= datetime.now(timezone.utc)
-    ).all()
+        Action.status == "pending"
+    ).order_by(Action.scheduled_for.asc()).all()
     
     return [
         ActionResponse(

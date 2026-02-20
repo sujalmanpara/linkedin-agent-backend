@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import uuid
+from pydantic import BaseModel
 
 from app.database import get_db
 from app.models import User, Campaign, Prospect
@@ -12,27 +13,31 @@ from app.utils.encryption import decrypt_data
 router = APIRouter()
 
 
+class AddProspectRequest(BaseModel):
+    user_id: str
+    campaign_id: str
+    linkedin_url: str
+    full_name: Optional[str] = None
+    title: Optional[str] = None
+    company: Optional[str] = None
+    headline: Optional[str] = None
+    location: Optional[str] = None
+
+
 @router.post("/add")
 async def add_prospect(
-    user_id: str,
-    campaign_id: str,
-    linkedin_url: str,
-    full_name: Optional[str] = None,
-    title: Optional[str] = None,
-    company: Optional[str] = None,
-    headline: Optional[str] = None,
-    location: Optional[str] = None,
+    req: AddProspectRequest,
     db: Session = Depends(get_db)
 ):
     """
     Add a prospect to a campaign and score with AI
     """
     # Verify user and campaign exist
-    user = db.query(User).filter(User.user_id == user_id).first()
+    user = db.query(User).filter(User.user_id == req.user_id).first()
     if not user:
         raise HTTPException(404, "User not found")
     
-    campaign = db.query(Campaign).filter(Campaign.campaign_id == campaign_id).first()
+    campaign = db.query(Campaign).filter(Campaign.campaign_id == req.campaign_id).first()
     if not campaign:
         raise HTTPException(404, "Campaign not found")
     
@@ -42,14 +47,14 @@ async def add_prospect(
     # Create prospect
     prospect = Prospect(
         prospect_id=prospect_id,
-        user_id=user_id,
-        campaign_id=campaign_id,
-        linkedin_url=linkedin_url,
-        full_name=full_name,
-        title=title,
-        company=company,
-        headline=headline,
-        location=location,
+        user_id=req.user_id,
+        campaign_id=req.campaign_id,
+        linkedin_url=req.linkedin_url,
+        full_name=req.full_name,
+        title=req.title,
+        company=req.company,
+        headline=req.headline,
+        location=req.location,
         stage="new",
         connection_status="not_sent"
     )
@@ -63,15 +68,16 @@ async def add_prospect(
         raise HTTPException(500, f"Database error: {str(e)}")
     
     # Score with AI (async task in production, sync for now)
+    ai_error = None
     try:
         llm_config = decrypt_data(user.llm_config_encrypted)
         llm_service = LLMService(llm_config)
         
         prospect_data = {
-            "full_name": full_name,
-            "title": title,
-            "company": company,
-            "headline": headline
+            "full_name": req.full_name,
+            "title": req.title,
+            "company": req.company,
+            "headline": req.headline
         }
         
         score_result = await llm_service.score_prospect(
@@ -84,15 +90,22 @@ async def add_prospect(
         
         db.commit()
     except Exception as e:
-        # Don't fail if AI scoring fails, just log
+        # Don't fail if AI scoring fails, but inform user
+        ai_error = str(e)
         print(f"AI scoring failed: {e}")
     
-    return {
+    response = {
         "status": "success",
         "prospect_id": prospect.prospect_id,
         "ai_score": prospect.ai_score,
         "message": "Prospect added successfully"
     }
+    
+    if ai_error:
+        response["ai_scoring_error"] = f"AI scoring failed: {ai_error}"
+        response["message"] = "Prospect added (AI scoring failed)"
+    
+    return response
 
 
 @router.get("/campaign/{campaign_id}/list", response_model=List[ProspectDetail])
